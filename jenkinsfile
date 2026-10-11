@@ -7,6 +7,11 @@ pipeline {
     jdk 'Java21'
     maven 'Maven3'
   }
+stage("cleanup Workspace") {
+  steps {
+    deleteDir()
+  }
+}
   
   stages {
     stage("cleanup Workspace") {
