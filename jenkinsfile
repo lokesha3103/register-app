@@ -1,0 +1,36 @@
+pipeline {
+  agent { 
+    label 'Jenkins-Agent' 
+  }
+  
+  tools {
+    jdk 'Java21'
+    maven 'Maven'
+  }
+  
+  stages {
+    stage("cleanup Workspace") {
+      steps {
+        cleanws()
+      }
+    }
+    
+    stage("checkout from SCM") {
+      steps {
+        git branch: 'main', credentialsId: 'github', url: 'https://github.com/lokesha3103/register-app.git'
+      }
+    }
+    
+    stage("Build Application") {
+      steps {
+        sh "mvn clean package"
+      }
+    }
+    
+    stage("Test application") {
+      steps {
+        sh "mvn test"
+      }
+    }
+  }
+}
