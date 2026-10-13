@@ -35,7 +35,7 @@ pipeline {
     
     stage('SonarQube Analysis') {
       steps {
-        withSonarQubeEnv('SonarQube') {
+        withSonarQubeEnv('sonarqube-server') {
           withCredentials([string(
             credentialsId: 'jenkins-sonarqube-tokens',
             variable: 'SONAR_TOKEN'
