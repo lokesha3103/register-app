@@ -1,52 +1,56 @@
 pipeline {
-  agent { 
-    label 'Jenkins-Agent' 
-  }
-  
-  tools {
-    jdk 'Java21'
-    maven 'Maven3'
-  }
-  
-  stages {
-    stage("cleanup Workspace") {
-      steps {
-        deleteDir()
-      }
+    agent {
+        label 'Jenkins-Agent'
     }
     
-    stage("checkout from SCM") {
-      steps {
-        git branch: 'main', credentialsId: 'github', url: 'https://github.com/lokesha3103/register-app.git'
-      }
+    tools {
+        jdk 'Java21'
+        maven 'Maven3'
     }
-    
-    stage("Build Application") {
-      steps {
-        sh "mvn clean package"
-      }
-    }
-    
-    stage("Test application") {
-      steps {
-        sh "mvn test"
-      }
-    }
-    
-    stage('SonarQube Analysis') {
-      steps {
-        withSonarQubeEnv('sonarqube-server') {
-          withCredentials([string(
-            credentialsId: 'jenkins-sonarqube-tokens',
-            variable: 'SONAR_TOKEN'
-          )]) {
-            sh '''
-            mvn -B org.sonarsource.scanner.maven:sonar-maven-plugin:3.11.0.3922 \
-            -Dsonar.token="$SONAR_TOKEN"
-            '''
-          }
+
+    stages {
+        stage('Cleanup Workspace') {
+            steps {
+                deleteDir()
+            }
         }
-      }
+
+        stage('Checkout from SCM') {
+            steps {
+                git branch: 'main',
+                    credentialsId: 'github',
+                    url: 'https://github.com/lokesha3103/register-app.git'
+            }
+        }
+
+        stage('Build Application') {
+            steps {
+                sh 'mvn -B clean package'
+            }
+        }
+
+        stage('Test Application') {
+            steps {
+                sh 'mvn -B test'
+            }
+        }
+
+        stage('SonarQube Analysis') {
+            steps {
+                withSonarQubeEnv('sonarqube-server') {
+                    withCredentials([
+                        string(
+                            credentialsId: 'jenkins-sonarqube-tokens',
+                            variable: 'SONAR_TOKEN'
+                        )
+                    ]) {
+                        sh '''
+                            mvn -B org.sonarsource.scanner.maven:sonar-maven-plugin:5.8.0.7211:sonar \
+                                -Dsonar.token="$SONAR_TOKEN"
+                        '''
+                    }
+                }
+            }
+        }
     }
-  }
 }
