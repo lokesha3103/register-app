@@ -33,11 +33,17 @@ pipeline {
       }
     }
     
-    stage("SonarQube Analysis") {
+    stage('SonarQube Analysis') {
       steps {
-        script {
-          withSonarQubeEnv(credentialsId: 'jenkins-sonarqube-tokens') {
-            sh "mvn sonar:sonar"
+        withSonarQubeEnv('SonarQube') {
+          withCredentials([string(
+            credentialsId: 'jenkins-sonarqube-tokens',
+            variable: 'SONAR_TOKEN'
+          )]) {
+            sh '''
+            mvn -B org.sonarsource.scanner.maven:sonar-maven-plugin \
+            -Dsonar.token="$SONAR_TOKEN"
+            '''
           }
         }
       }
