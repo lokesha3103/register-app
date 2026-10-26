@@ -1,19 +1,20 @@
+
 pipeline {
     agent {
         label 'Jenkins-Agent'
     }
-    
+
     tools {
         jdk 'Java21'
         maven 'Maven3'
     }
-    
+
     environment {
-        APP_NAME     = 'register-app'
-        RELEASE_VER  = '1.0.0'
-        DOCKER_USER  = 'lokesha3103'
-        IMAGE_NAME   = "${DOCKER_USER}/${APP_NAME}"
-        IMAGE_TAG    = "${RELEASE_VER}-${BUILD_NUMBER}"
+        APP_NAME    = 'register-app'
+        RELEASE_VER = '1.0.0'
+        DOCKER_USER = 'lokesha3103'
+        IMAGE_NAME  = 'lokesha3103/register-app'
+        IMAGE_TAG   = "${RELEASE_VER}-${BUILD_NUMBER}"
     }
 
     stages {
@@ -28,6 +29,30 @@ pipeline {
                 git branch: 'main',
                     credentialsId: 'github',
                     url: 'https://github.com/lokesha3103/register-app.git'
+            }
+        }
+
+        stage('Verify Files') {
+            steps {
+                sh '''
+                    echo "Current workspace:"
+                    pwd
+
+                    echo "Repository files:"
+                    ls -la
+
+                    test -f Dockerfile || {
+                        echo "ERROR: Dockerfile is missing from the GitHub checkout"
+                        exit 1
+                    }
+
+                    test -f pom.xml || {
+                        echo "ERROR: pom.xml is missing"
+                        exit 1
+                    }
+
+                    echo "Dockerfile and pom.xml found."
+                '''
             }
         }
 
@@ -69,25 +94,63 @@ pipeline {
             }
         }
 
-        stage('Build & push Docker Image') {
+        stage('Verify JAR') {
             steps {
-                script {
-                    withCredentials([usernamePassword(credentialsId: 'docker-hub-credentials', 
-                                                      usernameVariable: 'DOCKER_USER', 
-                                                      passwordVariable: 'DOCKER_PASS')]) {
-                        
-                        // Login to Docker Hub
-                        sh 'echo "$DOCKER_PASS" | docker login -u "$DOCKER_USER" --password-stdin'
-                        
-                        // Build and tag image
-                        def customImage = docker.build("${IMAGE_NAME}:${IMAGE_TAG}")
-                        
-                        // Push tags
-                        customImage.push()
-                        customImage.push('latest')
+                sh '''
+                    test -f target/register-app-1.0-SNAPSHOT.jar || {
+                        echo "ERROR: Expected application JAR was not generated"
+                        ls -la target || true
+                        exit 1
                     }
+                    echo "Application JAR found."
+                '''
+            }
+        }
+
+        stage('Build Docker Image') {
+            steps {
+                sh '''
+                    docker build \
+                        -t ${IMAGE_NAME}:${IMAGE_TAG} \
+                        -t ${IMAGE_NAME}:latest .
+                '''
+            }
+        }
+
+        stage('Push Docker Image') {
+            steps {
+                withCredentials([
+                    usernamePassword(
+                        credentialsId: 'docker-hub-credentials',
+                        usernameVariable: 'DH_USER',
+                        passwordVariable: 'DH_TOKEN'
+                    )
+                ]) {
+                    sh '''
+                        set +x
+
+                        echo "$DH_TOKEN" | docker login \
+                            --username "$DH_USER" \
+                            --password-stdin
+
+                        docker push ${IMAGE_NAME}:${IMAGE_TAG}
+                        docker push ${IMAGE_NAME}:latest
+
+                        docker logout
+                    '''
                 }
             }
+        }
+    }
+
+    post {
+        success {
+            echo "SUCCESS: Docker image pushed to Docker Hub."
+            echo "Image: lokesha3103/register-app:${IMAGE_TAG}"
+        }
+
+        failure {
+            echo 'FAILED: Check the first failed pipeline stage and its console output.'
         }
     }
 }
